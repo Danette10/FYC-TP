@@ -1,38 +1,58 @@
-# TP – Haute Disponibilité d’un serveur Web sous Debian
+# TP — Infrastructure Web Hautement Disponible & PRA sécurisé
+
+## Contexte pédagogique
+
+Une entreprise souhaite héberger un service web critique devant rester disponible même en cas de panne (serveur, service, incident de sécurité).
+L’objectif est de concevoir une infrastructure réaliste, intégrant à la fois :
+- haute disponibilité (HA)
+- journalisation des incidents
+- synchronisation sécurisée des données
+- protection contre la propagation d’un ransomware
+- plan de reprise d’activité (PRA)
 
 ## Objectif du TP
 
-L’objectif de ce TP est de mettre en place une **infrastructure haute disponibilité (HA)** composée de **deux serveurs Debian** hébergeant un serveur web **Nginx**, avec une **bascule automatique** en cas de panne du serveur principal ou du service web.
-
-L’utilisateur accède au service via une **IP virtuelle (VIP)** qui est automatiquement déplacée vers le serveur de secours en cas de défaillance.
+À l’issue de ce TP, l’étudiant devra être capable de :
+- Mettre en place une architecture web redondante
+- Garantir la continuité de service via une IP virtuelle
+- Analyser une panne à partir de logs
+- Comprendre la différence entre réplication et sauvegarde
+- Mettre en œuvre une synchronisation sécurisée
+- Empêcher la propagation d’un ransomware
+- Restaurer un service à partir de snapshots
 
 ---
 
-## Architecture mise en place
+## Architecture cible
+
+### Infrastructures
 
 - 2 machines virtuelles Debian :
   - **MASTER** : serveur principal
   - **BACKUP** : serveur de secours
 - 1 IP virtuelle (VIP)
 - Serveur web : **Nginx**
-- Mécanisme de bascule : **Keepalived (VRRP)**
-- Hyperviseur : **VMware**
-- Réseau :
-  - **Host-Only** : haute disponibilité (VIP)
-  - **NAT** : accès Internet (APT)
+- Haute disponibilité : **Keepalived (VRRP)**
+
+### Réseau
+
+- **NAT** : accès Internet (APT)
+- **Host-Only** : réseau interne HA (VIP)
 
 ---
 
-## Récupération des machines virtuelles
+## Ressources fournies
 
-Les machines virtuelles sont fournies sous forme de fichiers **OVA**.
-
-Télécharger les fichiers depuis la page **Releases** du dépôt GitHub :
-- `MASTER.ova`
-- `BACKUP.ova`
+- 2 fichiers OVA :
+  - ``MASTER.ova``
+  - ``BACKUP.ova``
+- 1 script d’automatisation :
+  - ``setup-ha-web.sh``
+- 1 repo GitHub contenant :
+  - le script
+  - la documentation
 
 Lien : [https://github.com/Danette10/FYC-TP/releases](https://github.com/Danette10/FYC-TP/releases)
-
 
 ---
 
@@ -40,137 +60,119 @@ Lien : [https://github.com/Danette10/FYC-TP/releases](https://github.com/Danette
 
 - VMware Workstation ou VMware Player
 - Connexion Internet (pour l’installation des paquets)
+- Connaissances de base Linux (shell, édition de fichiers)
 
 ---
 
-## Import des machines virtuelles
+## Partie 1 — Mise en place de la haute disponibilité
 
-Pour chaque fichier `.ova` :
-1. Ouvrir VMware
-2. **File → Open**
-3. Sélectionner le fichier `.ova`
-4. Nommer les machines respectivement **MASTER** et **BACKUP** pour plus de lisiblité
-5. Importer la machine
+### Travail demandé
 
-Importer **les deux VM** :
-- MASTER
-- BACKUP
+- Importer les deux machines virtuelles fournies :
+  - une machine jouant le rôle de **serveur principal (MASTER)** ;
+  - une machine jouant le rôle de **serveur de secours (BACKUP)**.
 
----
+- Configurer les cartes réseau sur chaque machine virtuelle :
+  - **Carte réseau 1** en mode **NAT** afin de permettre l’accès à Internet ;
+  - **Carte réseau 2** en mode **Host-Only**, sur le réseau `192.168.116.0/24`, dédié aux communications internes.
 
-## Configuration réseau VMware (IMPORTANT)
+- Installer un **serveur web** sur les deux machines virtuelles.
 
-Chaque VM doit avoir **2 cartes réseau** :
+- Configurer le service web de manière à ce que :
+  - le site soit fonctionnel sur chaque serveur ;
+  - le contenu du site soit identique sur les deux machines.
 
-### Carte réseau 1
-- **Host-Only (VMnet2)**
-- Sous-réseau : `192.168.116.0/24`
-- Sert à la haute disponibilité (VIP)
+- Mettre en place un **mécanisme de haute disponibilité** permettant :
+  - l’utilisation d’une **adresse IP virtuelle (VIP)** comme point d’accès unique ;
+  - la bascule automatique du service vers le serveur de secours en cas de panne.
 
-### Carte réseau 2
-- **NAT**
-- Sert uniquement à l’accès Internet (APT)
+- Configurer un **mécanisme de surveillance du service web** afin que :
+  - l’arrêt du service soit détecté automatiquement ;
+  - la bascule soit déclenchée sans intervention humaine.
 
----
+- Tester la **haute disponibilité** en simulant :
+  - l’arrêt du service web sur le serveur principal ;
+  - l’arrêt complet du serveur principal.
+ 
+## Partie 2 — Journalisation et traçabilité des incidents
 
-## Script d’installation et de configuration
+### Travail demandé
 
-Un script unique permet :
-- de configurer le réseau Host-Only
-- d’installer Nginx et Keepalived
-- de configurer l’IP virtuelle
-- de mettre en place la bascule automatique
-- de vérifier l’état du service web
+- Mettre en place un **système de journalisation** permettant de tracer :
+  - les pannes du service web ;
+  - les bascules entre le serveur principal et le serveur de secours ;
+  - le retour à un fonctionnement normal.
 
-Le script s’appelle : ``setup-ha-web.sh``
+- Vérifier que les événements liés à la haute disponibilité sont **enregistrés dans des journaux exploitables**.
 
----
+- Identifier et consulter les journaux permettant d’analyser :
+  - l’arrêt d’un service ;
+  - un changement d’état du mécanisme de haute disponibilité.
 
-## Étapes à effectuer sur CHAQUE VM
+- Provoquer volontairement une panne et :
+  - identifier l’événement correspondant dans les logs ;
+  - relever la date, l’heure et la nature de l’incident.
 
-### Accéder à la vm via ssh sur votre pc hote pour plus de confort
+- Expliquer l’intérêt de la journalisation dans le cadre d’un **Plan de Reprise d’Activité (PRA)**.
 
-### Passer en root
-```bash
-su -
-Entrer le mot de passe root
-```
+## Partie 3 — Synchronisation des données du service web
 
-### Créer le script
-```bash
-nano setup-ha-web.sh
-```
-- Coller le contenu du script fourni dans le dépôt GitHub
-- Sauvegarder avec CTRL + O, puis Entrée
-- Quitter avec CTRL + X
+### Travail demandé
 
-### Rendre le script exécutable
-```bash
-chmod +x setup-ha-web.sh
-```
+- Mettre en place un **mécanisme de synchronisation** des fichiers du site web entre les deux serveurs.
 
-## Exécution du script
+- S’assurer que :
+  - le contenu du site reste identique sur les deux machines ;
+  - la synchronisation est automatisée ;
+  - aucune action manuelle n’est nécessaire en fonctionnement normal.
 
-### Sur la VM MASTER
+- Analyser les limites d’une synchronisation classique dans un contexte d’incident de sécurité.
+- Justifier l’architecture de synchronisation retenue.
 
-```bash
-./setup-ha-web.sh --role master --ho-ip 192.168.116.10 --vip 192.168.116.100
-```
+## Partie 4 — Protection contre la propagation d’un ransomware
 
-### Sur la VM BACKUP
+### Travail demandé
 
-```bash
-./setup-ha-web.sh --role backup --ho-ip 192.168.116.11 --vip 192.168.116.100
-```
+- Identifier les risques liés à la propagation d’un ransomware dans une infrastructure redondante.
 
-## Tests de fonctionnement
+- Mettre en œuvre une **synchronisation sécurisée** permettant :
+  - d’éviter la diffusion d’une compromission vers le serveur de secours ;
+  - de conserver des versions antérieures des données ;
+  - de bloquer une synchronisation en cas de comportement suspect.
 
-### Accès au site web
+- Vérifier que les données précédentes restent accessibles après une tentative de compromission.
 
-Depuis le PC hôte, ouvrir un navigateur ou un terminal :
-```bash
-curl -I http://192.168.116.100
-```
-Le site doit répondre correctement.
+- Justifier les choix techniques effectués au regard des objectifs de sécurité.
 
-Un en-tête HTTP permet d’identifier le serveur actif :
-```css
-X-Served-By: master
-```
+## Partie 5 — Plan de Reprise d’Activité (PRA) et restauration
 
-## Test de bascule (failover)
+### Travail demandé
 
-### Sur la VM MASTER
+- Simuler un incident de sécurité impactant les données du service web.
 
-```bash
-systemctl stop nginx
-```
-Attendre quelques secondes, puis relancer la commande depuis le PC hôte :
-```bash
-curl -I http://192.168.116.100
-```
-Résultat attendu :
-```css
-X-Served-By: backup
-```
-- Le site reste accessible
-- La bascule est automatique
-- Le serveur BACKUP a pris le relais
+- Vérifier que :
+  - l’incident est détecté ;
+  - les données saines antérieures sont toujours disponibles.
 
-## Résultat attendu
+- Mettre en œuvre une **procédure de restauration** permettant de :
+  - rétablir un service web fonctionnel ;
+  - restaurer une version saine des données.
 
-- Le site est toujours accessible via la VIP
-- La bascule se fait :
-  - si le service Nginx tombe
-  - si le serveur MASTER s’arrête
-- Le contenu du site est **identique**
-- La haute disponibilité est effective et vérifiable
+- Tester l’accessibilité du site après restauration.
+
+- Analyser le temps de reprise et l’efficacité de la solution mise en place.
 
 ## Conclusion
 
-Ce TP met en œuvre une architecture réaliste de haute disponibilité basée sur :
-- la redondance de serveurs
-- une IP virtuelle
-- une détection automatique des pannes
-Il illustre les principes fondamentaux utilisés en entreprise pour garantir la continuité de service.
+Ce TP permet aux étudiants de mettre en œuvre une **infrastructure réaliste**, inspirée de celles utilisées en entreprise, intégrant à la fois des notions de **haute disponibilité**, de **sécurité** et de **plan de reprise d’activité (PRA)**.
+Au-delà de la simple mise en place technique, les étudiants apprennent à :
+- concevoir une architecture résiliente capable de faire face à des pannes matérielles ou logicielles ;
+- comprendre le rôle et les limites des mécanismes de haute disponibilité ;
+- analyser un incident à partir de journaux de sécurité exploitables ;
+- distinguer clairement une **réplication** d’une **sauvegarde sécurisée** ;
+- intégrer la problématique des ransomwares dans la conception d’une infrastructure ;
+- mettre en œuvre une procédure de restauration fiable après incident.
 
+Ce TP développe également une approche **réflexive et critique**, essentielle en environnement professionnel, où la continuité de service, la traçabilité et la capacité de reprise sont des enjeux majeurs.
+
+À l’issue de ce travail, les étudiants disposent d’une vision globale des problématiques liées à la disponibilité et à la sécurité des systèmes, ainsi que des compétences pratiques directement transposables en entreprise.
