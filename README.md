@@ -39,7 +39,6 @@ Lien : [https://github.com/Danette10/FYC-TP/releases](https://github.com/Danette
 ## Prérequis
 
 - VMware Workstation ou VMware Player
-- Un PC hôte
 - Connexion Internet (pour l’installation des paquets)
 
 ---
@@ -174,3 +173,4 @@ Ce TP met en œuvre une architecture réaliste de haute disponibilité basée su
 - une IP virtuelle
 - une détection automatique des pannes
 Il illustre les principes fondamentaux utilisés en entreprise pour garantir la continuité de service.
+
