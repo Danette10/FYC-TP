@@ -71,7 +71,7 @@ Vous devez :
 - importer les machines virtuelles dans VMware
 - vérifier leur bon fonctionnement
 
-Lien de téléchargement : (https://github.com/Danette10/FYC-TP/releases)[https://github.com/Danette10/FYC-TP/releases]
+Lien de téléchargement : [https://github.com/Danette10/FYC-TP/releases](https://github.com/Danette10/FYC-TP/releases)
 
 ---
 
@@ -122,4 +122,5 @@ Vous devrez prouver le bon fonctionnement de votre infrastructure en réalisant 
 ## Conclusion
 
 Ce TP doit démontrer votre capacité à mettre en place une **architecture robuste** permettant d’assurer la continuité d’un service web en cas de panne.
+
 
