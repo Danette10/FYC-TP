@@ -1,176 +1,125 @@
-# TP – Haute Disponibilité d’un serveur Web sous Debian
-
-## Objectif du TP
-
-L’objectif de ce TP est de mettre en place une **infrastructure haute disponibilité (HA)** composée de **deux serveurs Debian** hébergeant un serveur web **Nginx**, avec une **bascule automatique** en cas de panne du serveur principal ou du service web.
-
-L’utilisateur accède au service via une **IP virtuelle (VIP)** qui est automatiquement déplacée vers le serveur de secours en cas de défaillance.
+# TP – Mise en place d’une architecture Web avec bascule automatique sous Debian
 
 ---
 
-## Architecture mise en place
+## Contexte
 
-- 2 machines virtuelles Debian :
-  - **MASTER** : serveur principal
-  - **BACKUP** : serveur de secours
-- 1 IP virtuelle (VIP)
-- Serveur web : **Nginx**
-- Mécanisme de bascule : **Keepalived (VRRP)**
-- Hyperviseur : **VMware**
-- Réseau :
-  - **Host-Only** : haute disponibilité (VIP)
-  - **NAT** : accès Internet (APT)
+Dans un environnement professionnel, un site web doit rester accessible même lorsqu’un serveur rencontre un problème (panne, service arrêté, erreur de configuration, etc.).
+
+Pour répondre à ce besoin, on met en place une **architecture à haute disponibilité**, c’est-à-dire une infrastructure capable de continuer à fournir un service même si un serveur tombe en panne.
+
+Dans ce TP, vous allez mettre en place **deux serveurs web** fonctionnant ensemble :
+- un serveur principal
+- un serveur de secours
+
+Si le serveur principal ne fonctionne plus correctement, le serveur de secours prendra automatiquement le relais, sans interruption visible pour l’utilisateur.
 
 ---
 
-## Récupération des machines virtuelles
+## Objectifs pédagogiques
+
+À l’issue de ce TP, vous serez capable de :
+
+- Comprendre le principe de **continuité de service**
+- Mettre en place **deux serveurs web redondants**
+- Configurer une **adresse IP virtuelle** utilisée par les clients
+- Détecter automatiquement une panne de service web
+- Mettre en œuvre une **bascule automatique** vers un serveur de secours
+- Vérifier le bon fonctionnement du système côté utilisateur
+
+---
+
+## Travail demandé
+
+Vous devez mettre en place une infrastructure composée de **deux machines Debian** hébergeant un serveur web **Nginx**.
+
+L’utilisateur accède au site web **uniquement via une adresse IP virtuelle (VIP)**.  
+Cette adresse IP doit automatiquement être déplacée vers le serveur disponible en cas de panne du serveur principal.
+
+---
+
+## Contraintes à respecter
+
+- Les deux serveurs doivent héberger le **même site web**
+- L’utilisateur ne doit jamais accéder directement aux adresses IP des serveurs
+- La bascule doit être **automatique**, sans intervention manuelle
+- La détection de panne doit vérifier :
+  - que le serveur est accessible
+  - et que le **service web fonctionne réellement**
+- Le site doit rester accessible pendant toute la durée des tests
+
+---
+
+## Architecture cible à réaliser
+
+- **Deux machines virtuelles Debian**
+  - Serveur principal (MASTER)
+  - Serveur de secours (BACKUP)
+- **Une adresse IP virtuelle (VIP)** partagée entre les deux serveurs
+- **Serveur web** : Nginx
+- **Mécanisme de bascule automatique** : Keepalived
+- **Hyperviseur** : VMware
+
+---
+
+## Mise à disposition des machines virtuelles
 
 Les machines virtuelles sont fournies sous forme de fichiers **OVA**.
 
-Télécharger les fichiers depuis la page **Releases** du dépôt GitHub :
-- `MASTER.ova`
-- `BACKUP.ova`
+Vous devez :
+- télécharger les deux fichiers
+- importer les machines virtuelles dans VMware
+- vérifier leur bon fonctionnement
 
-Lien : [https://github.com/Danette10/FYC-TP/releases](https://github.com/Danette10/FYC-TP/releases)
-
-
----
-
-## Prérequis
-
-- VMware Workstation ou VMware Player
-- Un PC hôte
-- Connexion Internet (pour l’installation des paquets)
+Lien de téléchargement : (https://github.com/Danette10/FYC-TP/releases)[https://github.com/Danette10/FYC-TP/releases]
 
 ---
 
-## Import des machines virtuelles
+## Configuration réseau requise (IMPORTANT)
 
-Pour chaque fichier `.ova` :
-1. Ouvrir VMware
-2. **File → Open**
-3. Sélectionner le fichier `.ova`
-4. Nommer les machines respectivement **MASTER** et **BACKUP** pour plus de lisiblité
-5. Importer la machine
+Chaque machine virtuelle doit disposer de **deux interfaces réseau**.
 
-Importer **les deux VM** :
-- MASTER
-- BACKUP
-
----
-
-## Configuration réseau VMware (IMPORTANT)
-
-Chaque VM doit avoir **2 cartes réseau** :
-
-### Carte réseau 1
-- **Host-Only (VMnet2)**
+### Interface 1 – Réseau de haute disponibilité
+- Mode : **Host-Only**
 - Sous-réseau : `192.168.116.0/24`
-- Sert à la haute disponibilité (VIP)
+- Utilisée pour :
+  - la communication entre les serveurs
+  - l’adresse IP virtuelle (VIP)
 
-### Carte réseau 2
-- **NAT**
-- Sert uniquement à l’accès Internet (APT)
-
----
-
-## Script d’installation et de configuration
-
-Un script unique permet :
-- de configurer le réseau Host-Only
-- d’installer Nginx et Keepalived
-- de configurer l’IP virtuelle
-- de mettre en place la bascule automatique
-- de vérifier l’état du service web
-
-Le script s’appelle : ``setup-ha-web.sh``
+### Interface 2 – Accès Internet
+- Mode : **NAT**
+- Utilisée uniquement pour :
+  - l’installation des paquets
+  - les mises à jour du système
 
 ---
 
-## Étapes à effectuer sur CHAQUE VM
+## Travail à réaliser
 
-### Accéder à la vm via ssh sur votre pc hote pour plus de confort
+Vous devez :
 
-### Passer en root
-```bash
-su -
-Entrer le mot de passe root
-```
+1. Configurer le réseau des deux machines virtuelles
+2. Installer et configurer un serveur web Nginx sur chaque serveur
+3. Mettre en place un mécanisme de bascule automatique avec :
+   - une adresse IP virtuelle
+   - une détection de panne du service web
+4. Vérifier que l’adresse IP virtuelle est déplacée automatiquement vers le serveur disponible
+5. Tester le fonctionnement du système en simulant différentes pannes
 
-### Créer le script
-```bash
-nano setup-ha-web.sh
-```
-- Coller le contenu du script fourni dans le dépôt GitHub
-- Sauvegarder avec CTRL + O, puis Entrée
-- Quitter avec CTRL + X
+---
 
-### Rendre le script exécutable
-```bash
-chmod +x setup-ha-web.sh
-```
+## Tests à effectuer
 
-## Exécution du script
+Vous devrez prouver le bon fonctionnement de votre infrastructure en réalisant notamment :
 
-### Sur la VM MASTER
+- un accès normal au site web via l’adresse IP virtuelle
+- une simulation de panne du serveur principal
+- une vérification que le site reste accessible
+- une identification du serveur actuellement actif
 
-```bash
-./setup-ha-web.sh --role master --ho-ip 192.168.116.10 --vip 192.168.116.100
-```
-
-### Sur la VM BACKUP
-
-```bash
-./setup-ha-web.sh --role backup --ho-ip 192.168.116.11 --vip 192.168.116.100
-```
-
-## Tests de fonctionnement
-
-### Accès au site web
-
-Depuis le PC hôte, ouvrir un navigateur ou un terminal :
-```bash
-curl -I http://192.168.116.100
-```
-Le site doit répondre correctement.
-
-Un en-tête HTTP permet d’identifier le serveur actif :
-```css
-X-Served-By: master
-```
-
-## Test de bascule (failover)
-
-### Sur la VM MASTER
-
-```bash
-systemctl stop nginx
-```
-Attendre quelques secondes, puis relancer la commande depuis le PC hôte :
-```bash
-curl -I http://192.168.116.100
-```
-Résultat attendu :
-```css
-X-Served-By: backup
-```
-- Le site reste accessible
-- La bascule est automatique
-- Le serveur BACKUP a pris le relais
-
-## Résultat attendu
-
-- Le site est toujours accessible via la VIP
-- La bascule se fait :
-  - si le service Nginx tombe
-  - si le serveur MASTER s’arrête
-- Le contenu du site est **identique**
-- La haute disponibilité est effective et vérifiable
+---
 
 ## Conclusion
 
-Ce TP met en œuvre une architecture réaliste de haute disponibilité basée sur :
-- la redondance de serveurs
-- une IP virtuelle
-- une détection automatique des pannes
-Il illustre les principes fondamentaux utilisés en entreprise pour garantir la continuité de service.
+Ce TP doit démontrer votre capacité à mettre en place une **architecture robuste** permettant d’assurer la continuité d’un service web en cas de panne.
+
