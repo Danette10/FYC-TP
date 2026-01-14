@@ -130,18 +130,29 @@ sed -i "s#root /var/www/html;#root $SITE_DIR;#g" /etc/nginx/sites-available/defa
 cat > /etc/nginx/conf.d/servedby.conf <<EOF
 add_header X-Served-By $ROLE always;
 EOF
+cat > /etc/nginx/conf.d/healthz.conf <<'EOF'
+server {
+  listen 127.0.0.1:8081;
+  server_name _;
+  location /healthz {
+    add_header Content-Type text/plain;
+    return 200 "ok\n";
+  }
+}
+EOF
 
 nginx -t
 systemctl enable --now nginx
 systemctl reload nginx
 
 echo "[5/8] Install nginx healthcheck script..."
-cat > /usr/local/bin/check_nginx.sh <<'EOF'
-#!/bin/bash
-systemctl is-active --quiet nginx
-exit $?
+cat > /usr/local/bin/check_vip_ready.sh <<'EOF'
+#!/usr/bin/env bash
+# Keepalived healthcheck: nginx must answer HTTP 200 on local health endpoint
+set -euo pipefail
+curl -fsS --max-time 1 http://127.0.0.1:8081/healthz >/dev/null
 EOF
-chmod +x /usr/local/bin/check_nginx.sh
+chmod +x /usr/local/bin/check_vip_ready.sh
 
 echo "[6/8] Configure Keepalived (VRRP + VIP)..."
 STATE="BACKUP"; PRIO="$PRIO_B"
@@ -150,8 +161,8 @@ if [[ "$ROLE" == "master" ]]; then
 fi
 
 cat > /etc/keepalived/keepalived.conf <<EOF
-vrrp_script chk_nginx {
-    script "/usr/local/bin/check_nginx.sh"
+vrrp_script chk_vip_ready {
+    script "/usr/local/bin/check_vip_ready.sh"
     interval 2
     fall 2
     rise 1
@@ -174,7 +185,7 @@ vrrp_instance VI_1 {
     }
 
     track_script {
-        chk_nginx
+        chk_vip_ready
     }
 }
 EOF
